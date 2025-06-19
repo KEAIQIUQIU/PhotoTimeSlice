@@ -1,0 +1,2 @@
+# PhotoTimeSlice_CommandLine
+这是一个用于创建时间切片(time slice)照片的Python工具，可以从一系列连续拍摄的照片中生成具有时间维度效果的合成图像。
