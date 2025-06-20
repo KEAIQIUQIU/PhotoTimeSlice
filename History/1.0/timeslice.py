@@ -11,31 +11,19 @@ def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
             for text in _nsre.split(str(s))]
 
 
-def load_images(input_dir, reverse=False):
-    """加载输入文件夹中的所有图片，支持多种格式，按文件名自然排序"""
-    # 支持的图像格式扩展名
-    image_extensions = [
-        # 普通格式
-        "*.jpg", "*.jpeg", "*.png", "*.tif", "*.tiff",
-        # RAW格式
-        "*.nef", "*.dng", "*.cr2", "*.cr3", "*.arw", "*.raf", "*.orf", "*.rw2"
-    ]
-
+def load_images(input_dir):
+    """加载输入文件夹中的所有图片，支持JPG、NEF、DNG格式，按文件名自然排序"""
     image_paths = []
-    for ext in image_extensions:
+    for ext in ["*.jpg", "*.jpeg", "*.nef", "*.dng"]:
         image_paths.extend(Path(input_dir).glob(ext))
 
     # 使用自然排序对文件名排序
     image_paths.sort(key=natural_sort_key)
 
-    # 如果需要逆序排序
-    if reverse:
-        image_paths = list(reversed(image_paths))
-
     images = []
     print(f"加载 {len(image_paths)} 张图片...")
     for path in tqdm(image_paths, desc="加载图片"):
-        if path.suffix.lower() in ['.nef', '.dng', '.cr2', '.cr3', '.arw', '.raf', '.orf', '.rw2']:
+        if path.suffix.lower() in ['.nef', '.dng']:
             try:
                 import rawpy
                 with rawpy.imread(str(path)) as raw:
@@ -152,8 +140,8 @@ def create_horizontal_slice(images, position, linear=False):
 
 def create_circular_slice(images, linear=False):
     """
-创建圆形时间切片 - 填满整个图像
-linear: 是否启用线性模式（控制扇形大小变化）
+    创建圆形时间切片 - 填满整个图像
+    linear: 是否启用线性模式（控制扇形大小变化）
     """
     img = images[0]
     img_w, img_h = img.size
@@ -198,17 +186,15 @@ linear: 是否启用线性模式（控制扇形大小变化）
 
 def main():
     parser = argparse.ArgumentParser(description="时间切片照片生成器")
-    parser.add_argument("-i", "--input", default="input", help="输入文件夹路径")
-    parser.add_argument("-o", "--output", default="output", help="输出文件夹路径")
-    parser.add_argument("-t", "--type", required=True,
+    parser.add_argument("--input", default="input", help="输入文件夹路径")
+    parser.add_argument("--output", default="output", help="输出文件夹路径")
+    parser.add_argument("--type", required=True,
                         choices=["vertical", "horizontal", "circular"],
                         help="切片类型: vertical, horizontal, circular")
-    parser.add_argument("-p", "--position", default="center",
+    parser.add_argument("--position", default="center",
                         help="条带位置: left/center/right/top/bottom 或 0.0-1.0")
-    parser.add_argument("-l", "--linear", action="store_true",
+    parser.add_argument("--linear", action="store_true",
                         help="启用线性模式：垂直/水平切片取不同部位；圆形切片使用变化的扇形大小")
-    parser.add_argument("-r", "--reverse", action="store_true",
-                        help="逆序排序：使用时间倒序的照片序列")
 
     args = parser.parse_args()
 
@@ -216,7 +202,7 @@ def main():
     Path(args.output).mkdir(parents=True, exist_ok=True)
 
     # 加载图像
-    images = load_images(args.input, args.reverse)
+    images = load_images(args.input)
     if not images:
         print("错误: 输入目录中没有找到图片")
         return
