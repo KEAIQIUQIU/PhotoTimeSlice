@@ -1,177 +1,124 @@
-# 时间切片照片生成器
+# 时间切片照片生成器 (Time Slice Photo Generator)
 
-这是一个用于创建时间切片(time slice)照片的Python工具，可以从一系列连续拍摄的照片中生成具有时间维度效果的合成图像。提供命令行界面(CLI)和图形用户界面(GUI)两种操作方式，满足不同用户的需求。
+## 概述
 
-## 目录结构
-
-```
-Software/
-└─ CLI_GUI/             # 同时支持命令行和图形界面的版本
-   └─ 3.3/             # 3.3版本
-      ├─ cli.py         # 命令行程序（同时也是核心模块，图形界面必须！）
-      └─ gui.py         # 图形用户界面程序
-```
+时间切片照片生成器是一个强大的工具，用于从一系列连续拍摄的照片中创建时间切片(time slice)效果。
+时间切片是一种将不同时间点的影像组合到同一张图片中的技术，可以创造出令人惊叹的视觉效果。
 
 ## 功能特点
-- 支持多种时间切片模式：
-  - **垂直切片**：纵向时间条带效果
-  - **水平切片**：横向时间条带效果
-  - **圆形切片**：径向时间切片效果
-  - **圆形环带切片**：从中心向外扩散的圆形环带
-  - **椭圆形扇形切片**：椭圆形径向时间切片
-  - **椭圆形环带切片**：从中心向外扩散的椭圆形环带
-  - **矩形环带切片**：从中心向外扩散的矩形环带
-- **支持广泛的图像格式**：
-  - 普通格式: JPG, JPEG, PNG, TIF, TIFF
-  - RAW格式: NEF(Nikon), DNG(Adobe), CR2/CR3(Canon), ARW(Sony), RAF(Fujifilm), ORF(Olympus), RW2(Panasonic)
-- 输出尺寸与输入图像一致
-- 输出高质量无损JPEG图像
-- 支持正序/逆序排序
-- **图形用户界面(GUI)**：直观易用的操作界面
-- **多语言支持**：支持中文和英文界面
-- **完成后自动打开图片**：可选功能，处理完成后自动打开生成的时间切片图片
-- 统一代码库：CLI和GUI共享同一套核心功能代码
 
-## 安装依赖
+- **多种切片模式**：
+  - 垂直切片
+  - 水平切片
+  - 圆形扇形切片
+  - 椭圆形扇形切片
+  - 椭圆形环带切片
+  - 矩形环带切片
+  - 圆形环带切片
+  - 垂直S型曲线
+  - 水平S型曲线
+  
+- **双界面支持**：
+  - 直观的图形用户界面(GUI)
+  - 强大的命令行界面(CLI)
+  
+- **多语言支持**：
+  - 中文
+  - 英文
+  
+- **主题系统**：
+  - 浅色模式
+  - 深色模式
+  - 跟随系统主题
+  
+- **其他特性**：
+  - 线性模式控制
+  - 逆序排序选项
+  - 处理完成后自动打开图片
+  - 实时进度显示和日志输出
+  - 支持多种图片格式，包括RAW格式
 
-### 核心功能依赖：
-```
-pip install Pillow tqdm
-```
+## 安装指南
 
-### RAW格式支持依赖：
-```
-pip install rawpy
-```
+### 依赖项
 
-### GUI界面依赖：
-```
-pip install PyQt5
-```
+- Python 3.6+
+- PyQt5
+- Pillow (PIL)
+- tqdm
+- numpy
+- rawpy (用于RAW格式支持)
 
-## 命令行使用方式 (CLI)
-
-```bash
-python cli.py -t [切片类型] -i [输入目录] -o [输出目录] [选项]
-```
-
-### 基本参数
-
-| 参数 | 简写 | 描述 | 默认值 |
-|------|------|------|--------|
-| `--input` | `-i` | 输入目录，包含源图片 | `input` |
-| `--output` | `-o` | 输出目录，保存结果 | `output` |
-| `--type` | `-t` | **必须**：切片类型 (`vertical`, `horizontal`, `circular`, `elliptical_sector`, `elliptical_band`, `rectangular_band`, `circular_band`) | 无 |
-
-### 高级选项
-
-| 选项 | 简写 | 描述 | 适用切片类型 |
-|------|------|------|-------------|
-| `--position` | `-p` | 条带位置 (`left`, `center`, `right`, `top`, `bottom` 或 0.0-1.0) | 垂直/水平 |
-| `--linear` | `-l` | 启用线性模式：<br>- 垂直/水平切片：每张图片取不同部位<br>- 圆形/椭圆形扇形切片：扇形大小随时间变化 | 所有类型 |
-| `--reverse` | `-r` | 逆序排序（使用时间倒序的照片序列） | 所有类型 |
-
-### 使用示例
-
-1. **垂直时间切片（居中位置）**：
+### 安装步骤
+1. 安装依赖：
    ```bash
-   python cli.py -t vertical -p center -i photos -o result
+   pip install pyqt5 pillow tqdm numpy rawpy
    ```
 
-2. **水平时间切片（线性模式）**：
-   ```bash
-   python cli.py -t horizontal -p top -l -i photos -o result
-   ```
+3. 运行应用程序：
+   - **图形界面**：
+     ```bash
+     python gui.py
+     ```
+   - **命令行界面**：
+     ```bash
+     python cli.py -i input_dir -o output_dir -t slice_type [其他选项]
+     ```
 
-3. **圆形时间切片（统一大小模式）**：
-   ```bash
-   python cli.py -t circular -i photos -o result
-   ```
+## 使用说明
 
-4. **圆形时间切片（变化大小模式）**：
-   ```bash
-   python cli.py -t circular -l -i photos -o result
-   ```
+### 图形界面(GUI)
 
-5. **圆形环带时间切片**：
-   ```bash
-   python cli.py -t circular_band -i photos -o result
-   ```
-   
-6. **逆序时间切片（时间倒流效果）**：
-   ```bash
-   python cli.py -t vertical -r -i photos -o result
-   ```
-   
-7. **矩形环带时间切片**：
-   ```bash
-   python cli.py -t rectangular_band -i photos -o result
-   ```
-   
-8. **椭圆形环带时间切片**：
-   ```bash
-   python cli.py -t elliptical_band -i photos -o result
-   ```
-
-## GUI使用方式
-
-```bash
-python gui.py
-```
-
-### 使用流程
-1. 设置输入目录（包含源图片）
-2. 设置输出目录（保存结果）
+1. 选择输入目录（包含一系列按时间顺序拍摄的图片）
+2. 选择输出目录（用于保存生成的时间切片图片）
 3. 选择切片类型
-4. 根据需要调整位置和其他选项
-5. 选择界面语言（中文/英文）
-6. 勾选"完成后自动打开图片"（可选）
-7. 点击"生成时间切片"按钮开始处理
+4. 根据需要调整其他选项（如位置、线性模式、逆序排序等）
+5. 点击"生成时间切片"按钮开始处理
+6. 处理完成后，结果图片将自动保存并在默认图片查看器中打开
 
-### 多语言支持
-图形用户界面支持中文和英文两种语言：
-- 通过菜单栏中的"语言"菜单切换界面语言
-- 应用程序会自动保存语言设置，下次启动时会使用上次选择的语言
+### 命令行界面(CLI)
 
-处理完成后，如果勾选了"完成后自动打开图片"，系统会自动使用默认图片查看器打开生成的时间切片图片。
+基本用法：
+```bash
+python cli.py -i input_dir -o output_dir -t slice_type [其他选项]
+```
 
-## 输入要求
+可用选项：
+```
+-i, --input      输入文件夹路径（默认为"input"）
+-o, --output     输出文件夹路径（默认为"output"）
+-t, --type       切片类型（必需）：
+                 vertical, horizontal, circular_sector,
+                 elliptical_sector, elliptical_band,
+                 rectangular_band, circular_band,
+                 vertical_s, horizontal_s
+-p, --position   条带位置：left/center/right/top/bottom 或 0.0-1.0（默认为"center"）
+-l, --linear     启用线性模式
+-r, --reverse    逆序排序
+```
 
-1. 所有输入图片必须具有相同的尺寸
-2. **支持格式**：
-   - **普通格式**: JPG, JPEG, PNG, TIF, TIFF
-   - **RAW格式**: 
-     - Nikon: NEF
-     - Canon: CR2, CR3
-     - Sony: ARW
-     - Fujifilm: RAF
-     - Olympus: ORF
-     - Panasonic: RW2
-     - Adobe: DNG
+示例：
+```bash
+python cli.py -i ./sunset_photos -o ./results -t vertical_s --position center --linear
+```
 
-## 输出结果
+## 更新说明
 
-结果将保存为无损JPEG格式，文件名为 `timeslice.jpg`，位于指定的输出目录中。
+1. **主题管理优化**：
+   - 将深色/浅色主题的样式表提取为常量
+   - 添加了系统主题自动检测
 
-## 注意事项
+2. **切片类型处理优化**：
+   - 使用映射表统一管理切片类型
+   - 精简了控件状态更新逻辑
+   - 统一了类型名称转换处理
 
-- 确保所有输入图片尺寸一致
+3. **新增了S型切片选项**
 
-### 早期版本：
-- CLI 1.0-1.2：命令行界面版本迭代
-- GUI 2.1-2.2：图形用户界面版本迭代
-- CLI_GUI 3.2：CLI和GUI共享同一套核心功能代码
+### 支持的图片格式
 
-## 主要改进说明
+- JPEG, PNG, TIFF
+- RAW格式：NEF, DNG, CR2, CR3, ARW, RAF, ORF, RW2
+---
 
-1. **多语言支持**：
-   - 添加了语言菜单（中文/英文）
-   - 语言设置会自动保存和恢复
-
-2. **菜单系统**：
-   - 添加了文件菜单（退出功能）
-   - 添加了语言菜单（中英文切换）
-   - 添加了帮助菜单（关于对话框）
-
-3. **关于对话框**：
-   - 添加了显示应用程序信息的对话框
+**立即开始创造令人惊叹的时间切片照片！**
