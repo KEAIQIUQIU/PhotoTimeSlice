@@ -554,14 +554,14 @@ class TimesliceGUI(QMainWindow):
         lang = self.settings.value("language", "zh")
         if lang == "zh":
             title = "关于时间切片照片生成器"
-            message = ("时间切片照片生成器 v3.3\n\n"
+            message = ("时间切片照片生成器 v3.4\n\n"
                        "一个用于创建时间切片(time slice)照片的工具，"
                        "可以从一系列连续拍摄的照片中生成具有时间维度效果的合成图像。\n\n"
                        "支持多种时间切片模式，包括垂直切片、水平切片、"
                        "圆形扇形切片、椭圆形扇形切片以及S型曲线效果。")  # 更新描述
         else:
             title = "About Time Slice Photo Generator"
-            message = ("Time Slice Photo Generator v3.3\n\n"
+            message = ("Time Slice Photo Generator v3.4\n\n"
                        "A tool for creating time slice photos that generates composite images "
                        "with time dimension effects from a series of continuously taken photos.\n\n"
                        "Supports multiple time slice modes including vertical, horizontal, "
