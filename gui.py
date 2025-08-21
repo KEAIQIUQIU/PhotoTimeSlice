@@ -1,11 +1,10 @@
-# gui.py
 import os
 import platform
 import subprocess
 import sys
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QComboBox, QLineEdit, QCheckBox, QFileDialog, QProgressBar,
-                             QGroupBox, QMessageBox, QTextEdit, QMenuBar, QMenu, QAction, QSpinBox, QSlider)
+                             QGroupBox, QMessageBox, QTextEdit, QMenuBar, QMenu, QAction)
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QEvent, QTranslator, QLocale, QSettings
 from PyQt5.QtGui import QPalette, QColor
 
@@ -19,7 +18,6 @@ sys.path.insert(0, application_path)
 
 from cli import run_timeslice
 
-
 class LogEvent(QEvent):
     """Custom event for thread-safe log updates"""
     EVENT_TYPE = QEvent.Type(QEvent.registerEventType())
@@ -27,7 +25,6 @@ class LogEvent(QEvent):
     def __init__(self, text):
         super().__init__(LogEvent.EVENT_TYPE)
         self.text = text
-
 
 class TimesliceWorker(QThread):
     progress_signal = pyqtSignal(int, str)
@@ -53,7 +50,6 @@ class TimesliceWorker(QThread):
             self.finished_signal.emit(output_path)
         except Exception as e:
             self.error_signal.emit(str(e))
-
 
 class TimesliceGUI(QMainWindow):
     def __init__(self):
@@ -165,7 +161,7 @@ class TimesliceGUI(QMainWindow):
         self.type_combo.addItems([
             self.tr("垂直切片"),
             self.tr("水平切片"),
-            self.tr("圆形扇形切片"),  # 修改为"圆形扇形切片"
+            self.tr("圆形扇形切片"),
             self.tr("椭圆形扇形切片"),
             self.tr("椭圆形环带切片"),
             self.tr("矩形环带切片"),
@@ -473,7 +469,7 @@ class TimesliceGUI(QMainWindow):
             self.type_combo.addItems([
                 "垂直切片",
                 "水平切片",
-                "圆形扇形切片",  # 修改为"圆形扇形切片"
+                "圆形扇形切片",
                 "椭圆形扇形切片",
                 "椭圆形环带切片",
                 "矩形环带切片",
@@ -485,7 +481,7 @@ class TimesliceGUI(QMainWindow):
             self.type_combo.addItems([
                 "Vertical Slice",
                 "Horizontal Slice",
-                "Circular Sector Slice",  # 修改为"Circular Sector Slice"
+                "Circular Sector Slice",
                 "Elliptical Sector Slice",
                 "Elliptical Band Slice",
                 "Rectangular Band Slice",
@@ -554,18 +550,18 @@ class TimesliceGUI(QMainWindow):
         lang = self.settings.value("language", "zh")
         if lang == "zh":
             title = "关于时间切片照片生成器"
-            message = ("时间切片照片生成器 v3.4\n\n"
+            message = ("时间切片照片生成器 v4.1\n\n"
                        "一个用于创建时间切片(time slice)照片的工具，"
                        "可以从一系列连续拍摄的照片中生成具有时间维度效果的合成图像。\n\n"
                        "支持多种时间切片模式，包括垂直切片、水平切片、"
-                       "圆形扇形切片、椭圆形扇形切片以及S型曲线效果。")  # 更新描述
+                       "圆形扇形切片、椭圆形扇形切片以及S型曲线效果。")
         else:
             title = "About Time Slice Photo Generator"
-            message = ("Time Slice Photo Generator v3.4\n\n"
+            message = ("Time Slice Photo Generator v4.1\n\n"
                        "A tool for creating time slice photos that generates composite images "
                        "with time dimension effects from a series of continuously taken photos.\n\n"
                        "Supports multiple time slice modes including vertical, horizontal, "
-                       "circular sector, elliptical sector, and S-curve effects.")  # 更新描述
+                       "circular sector, elliptical sector, and S-curve effects.")
         QMessageBox.about(self, title, message)
 
     def select_input_dir(self):
@@ -632,7 +628,7 @@ class TimesliceGUI(QMainWindow):
             else:
                 self.linear_check.setToolTip("Enable linear mode: take different parts from each image")
 
-        elif slice_type in ["圆形扇形切片", "Circular Sector Slice"]:  # 更新类型名称
+        elif slice_type in ["圆形扇形切片", "Circular Sector Slice"]:
             self.position_combo.clear()
             if lang == "zh":
                 self.position_combo.addItems(["居中"])
@@ -755,8 +751,8 @@ class TimesliceGUI(QMainWindow):
             return "vertical"
         elif slice_type in ["水平切片", "Horizontal Slice"]:
             return "horizontal"
-        elif slice_type in ["圆形扇形切片", "Circular Sector Slice"]:  # 更新类型名称
-            return "circular_sector"  # 更新为circular_sector
+        elif slice_type in ["圆形扇形切片", "Circular Sector Slice"]:
+            return "circular_sector"
         elif slice_type in ["椭圆形扇形切片", "Elliptical Sector Slice"]:
             return "elliptical_sector"
         elif slice_type in ["椭圆形环带切片", "Elliptical Band Slice"]:
@@ -870,7 +866,6 @@ class TimesliceGUI(QMainWindow):
             else:
                 self.log(f"Error opening image: {str(e)}")
                 QMessageBox.warning(self, "Open Image Error", f"Cannot open image:\n{str(e)}")
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
