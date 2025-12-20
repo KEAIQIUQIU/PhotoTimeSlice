@@ -2,6 +2,7 @@ import argparse
 import sys
 import os
 from pathlib import Path
+from datetime import datetime
 
 from utils import load_images
 from slices import (
@@ -27,17 +28,62 @@ def get_translator(lang):
     return translator
 
 
+def generate_output_filename(base_name, include_timestamp, include_slice_type, slice_type, extension):
+    """生成输出文件名"""
+    parts = [base_name]
+
+    if include_timestamp:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        parts.append(timestamp)
+
+    if include_slice_type:
+        # 映射切片类型为中文或英文简称
+        type_map = {
+            "vertical": "垂直",
+            "horizontal": "水平",
+            "circular_sector": "圆形扇形",
+            "elliptical_sector": "椭圆形扇形",
+            "elliptical_band": "椭圆形环带",
+            "rectangular_band": "矩形环带",
+            "circular_band": "圆形环带",
+            "vertical_s": "垂直S型",
+            "horizontal_s": "水平S型"
+        }
+        type_name = type_map.get(slice_type, slice_type)
+        parts.append(type_name)
+
+    # 用"-"连接所有部分
+    filename = "-".join(filter(None, parts))
+
+    # 添加扩展名
+    if not extension.startswith('.'):
+        extension = '.' + extension
+
+    return f"{filename}{extension}"
+
+
 def run_timeslice(input_dir, output_dir, slice_type, position="center", linear=False, reverse=False,
-                  progress_callback=None):
+                  sort_by='name', output_basename='timeslice', include_timestamp=False,
+                  include_slice_type=False, extension='jpg', progress_callback=None):
     """生成时间切片（仅Windows）"""
     translator = get_translator('en')
 
     # 创建输出目录
     Path(output_dir).mkdir(parents=True, exist_ok=True)
-    output_path = Path(output_dir) / "timeslice.jpg"
+
+    # 生成输出文件名
+    output_filename = generate_output_filename(
+        base_name=output_basename,
+        include_timestamp=include_timestamp,
+        include_slice_type=include_slice_type,
+        slice_type=slice_type,
+        extension=extension
+    )
+
+    output_path = Path(output_dir) / output_filename
 
     # 加载图片
-    images = load_images(input_dir, reverse)
+    images = load_images(input_dir, sort_by, reverse)
     if not images:
         raise Exception(translator.tr("输入目录中没有找到图片"))
 
@@ -79,7 +125,16 @@ def run_timeslice(input_dir, output_dir, slice_type, position="center", linear=F
 
     # 保存图片
     try:
-        result.save(output_path, "JPEG", quality=100, subsampling=0)
+        # 根据扩展名选择保存参数
+        if extension.lower() in ['jpg', 'jpeg']:
+            result.save(output_path, "JPEG", quality=100, subsampling=0)
+        elif extension.lower() == 'png':
+            result.save(output_path, "PNG", optimize=True)
+        elif extension.lower() == 'webp':
+            result.save(output_path, "WEBP", quality=95)
+        else:
+            # 默认使用JPEG
+            result.save(output_path, "JPEG", quality=100, subsampling=0)
     except Exception as e:
         raise Exception(f"{translator.tr('保存图片失败:')} {str(e)}")
 
@@ -131,6 +186,33 @@ def main():
         help=default_translator.tr("逆序排序")
     )
     parser.add_argument(
+        "--sort-by",
+        default="name",
+        choices=["name", "created_time", "modified_time"],
+        help=default_translator.tr("排序方式：name/created_time/modified_time")
+    )
+    parser.add_argument(
+        "--output-name",
+        default="timeslice",
+        help=default_translator.tr("输出文件基础名称")
+    )
+    parser.add_argument(
+        "--include-timestamp",
+        action="store_true",
+        help=default_translator.tr("在文件名中包含时间戳")
+    )
+    parser.add_argument(
+        "--include-slice-type",
+        action="store_true",
+        help=default_translator.tr("在文件名中包含切片类型")
+    )
+    parser.add_argument(
+        "--extension",
+        default="jpg",
+        choices=["jpg", "jpeg", "png", "webp"],
+        help=default_translator.tr("输出文件扩展名")
+    )
+    parser.add_argument(
         "-lang", "--language",
         default="en",
         choices=["en", "zh_CN"],
@@ -155,6 +237,11 @@ def main():
             position=args.position,
             linear=args.linear,
             reverse=args.reverse,
+            sort_by=args.sort_by,
+            output_basename=args.output_name,
+            include_timestamp=args.include_timestamp,
+            include_slice_type=args.include_slice_type,
+            extension=args.extension,
             progress_callback=progress_callback
         )
 

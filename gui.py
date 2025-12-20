@@ -45,7 +45,9 @@ class TimesliceWorker(QThread):
     def run(self):
         try:
             from utils import load_images
-            images = load_images(self.params['input_dir'], self.params['reverse'])
+            images = load_images(self.params['input_dir'],
+                                 self.params['sort_by'],
+                                 self.params['reverse'])
             total_images = len(images)
 
             if total_images == 0:
@@ -63,6 +65,11 @@ class TimesliceWorker(QThread):
                 position=self.params['position'],
                 linear=self.params['linear'],
                 reverse=self.params['reverse'],
+                sort_by=self.params['sort_by'],
+                output_basename=self.params['output_basename'],
+                include_timestamp=self.params['include_timestamp'],
+                include_slice_type=self.params['include_slice_type'],
+                extension=self.params['extension'],
                 progress_callback=progress_callback
             )
 
@@ -82,7 +89,7 @@ class TimesliceGUI(QMainWindow):
         super().__init__()
         self.settings = QSettings("TimeslicePhotoGenerator", "Settings")
 
-        # 初始化翻译器
+        # 初始化翻译器 - 默认使用中文
         self.translator = Translator()
         self.current_lang = self.settings.value("language", "zh_CN")
         self.translator.load_translations(self.current_lang)
@@ -91,14 +98,14 @@ class TimesliceGUI(QMainWindow):
         # 移除跟随系统，无需主题检测定时器
         self.theme_check_timer = QTimer()
 
-        # 初始化主题（默认浅色）
+        # 初始化主题 - 默认使用浅色
         self.current_theme = self.settings.value("theme", "light")
 
         self.init_ui()
         self.load_theme()
 
         self.setWindowTitle(self.tr("时间切片照片生成器"))
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 800, 650)  # 增加高度以容纳新的UI元素
 
         self.current_output_path = ""
         self.total_images = 0
@@ -202,6 +209,9 @@ class TimesliceGUI(QMainWindow):
                 QCheckBox {
                     color: #b4b4b4;
                 }
+                QCheckBox:disabled {
+                    color: #666;
+                }
                 QPushButton {
                     background-color: #333;
                     color: #b4b4b4;
@@ -281,8 +291,15 @@ class TimesliceGUI(QMainWindow):
                     color: #333;
                     border: 1px solid #ccc;
                 }
+                QComboBox:disabled {
+                    background-color: #f5f5f5;
+                    color: #999;
+                }
                 QCheckBox {
                     color: #333;
+                }
+                QCheckBox:disabled {
+                    color: #999;
                 }
                 QPushButton {
                     background-color: #f0f0f0;
@@ -301,7 +318,8 @@ class TimesliceGUI(QMainWindow):
 
         # 应用样式
         self.app.setPalette(palette)
-        self.menu_bar.setStyleSheet(menu_style)
+        if hasattr(self, 'menu_bar'):
+            self.menu_bar.setStyleSheet(menu_style)
         self.setStyleSheet(menu_style)
 
     def load_theme(self):
@@ -469,12 +487,11 @@ class TimesliceGUI(QMainWindow):
         position_layout = QHBoxLayout()
         self.position_label = QLabel(self.tr("位置设置:"))
         self.position_combo = QComboBox()
+        # 默认设置为垂直切片的位置选项
         self.position_combo.addItems([
             self.tr("左侧"),
             self.tr("居中"),
-            self.tr("右侧"),
-            self.tr("顶部"),
-            self.tr("底部")
+            self.tr("右侧")
         ])
         self.position_combo.setEnabled(True)
         self.type_combo.currentIndexChanged.connect(self.update_controls_state)
@@ -482,10 +499,27 @@ class TimesliceGUI(QMainWindow):
         position_layout.addWidget(self.position_combo)
         slice_layout.addLayout(position_layout)
 
+        # 新增：排序规则
+        sort_layout = QHBoxLayout()
+        self.sort_label = QLabel(self.tr("排序规则:"))
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItems([
+            self.tr("按文件名"),
+            self.tr("按创建时间"),
+            self.tr("按修改时间")
+        ])
+        sort_layout.addWidget(self.sort_label)
+        sort_layout.addWidget(self.sort_combo)
+        slice_layout.addLayout(sort_layout)
+
         options_layout = QHBoxLayout()
-        self.linear_check = QCheckBox(self.tr("线性模式"))
+        self.linear_check = QCheckBox(self.tr("线性模式"))  # 初始文本，会根据切片类型更新
         self.reverse_check = QCheckBox(self.tr("逆序排序"))
         self.auto_open_check = QCheckBox(self.tr("完成后自动打开图片"))
+
+        # 连接线性模式复选框的状态改变信号
+        self.linear_check.stateChanged.connect(self.update_linear_mode_state)
+
         options_layout.addWidget(self.linear_check)
         options_layout.addWidget(self.reverse_check)
         options_layout.addWidget(self.auto_open_check)
@@ -493,6 +527,50 @@ class TimesliceGUI(QMainWindow):
 
         self.slice_group.setLayout(slice_layout)
         main_layout.addWidget(self.slice_group)
+
+        # 新增：输出文件命名设置
+        self.output_naming_group = QGroupBox(self.tr("输出文件命名"))
+        naming_layout = QVBoxLayout()
+
+        # 基础文件名
+        name_layout = QHBoxLayout()
+        self.basename_label = QLabel(self.tr("基础名称:"))
+        self.basename_edit = QLineEdit()
+        self.basename_edit.setText("timeslice")
+        self.basename_edit.setPlaceholderText(self.tr("输入文件基础名称"))
+        name_layout.addWidget(self.basename_label)
+        name_layout.addWidget(self.basename_edit)
+        naming_layout.addLayout(name_layout)
+
+        # 扩展名选择
+        extension_layout = QHBoxLayout()
+        self.extension_label = QLabel(self.tr("文件格式:"))
+        self.extension_combo = QComboBox()
+        self.extension_combo.addItems(["JPG", "PNG", "WebP"])
+        extension_layout.addWidget(self.extension_label)
+        extension_layout.addWidget(self.extension_combo)
+        naming_layout.addLayout(extension_layout)
+
+        # 可选后缀
+        suffix_layout = QHBoxLayout()
+        self.timestamp_check = QCheckBox(self.tr("添加时间戳"))
+        self.slice_type_check = QCheckBox(self.tr("添加切片类型"))
+        suffix_layout.addWidget(self.timestamp_check)
+        suffix_layout.addWidget(self.slice_type_check)
+        naming_layout.addLayout(suffix_layout)
+
+        # 文件名预览
+        preview_layout = QHBoxLayout()
+        self.preview_label = QLabel(self.tr("预览:"))
+        self.filename_preview = QLabel("timeslice.jpg")
+        self.filename_preview.setStyleSheet("color: #666; font-style: italic;")
+        preview_layout.addWidget(self.preview_label)
+        preview_layout.addWidget(self.filename_preview)
+        preview_layout.addStretch()
+        naming_layout.addLayout(preview_layout)
+
+        self.output_naming_group.setLayout(naming_layout)
+        main_layout.addWidget(self.output_naming_group)
 
         # 进度信息
         self.progress_group = QGroupBox(self.tr("进度信息"))
@@ -525,10 +603,178 @@ class TimesliceGUI(QMainWindow):
 
         self.status_bar = self.statusBar()
         self.status_bar.showMessage(self.tr("准备就绪"))
+
+        # 初始化控件状态
         self.update_controls_state(0)
 
-        # 初始化菜单选中状态
+        # 连接预览更新信号
+        self.basename_edit.textChanged.connect(self.update_filename_preview)
+        self.extension_combo.currentTextChanged.connect(self.update_filename_preview)
+        self.timestamp_check.stateChanged.connect(self.update_filename_preview)
+        self.slice_type_check.stateChanged.connect(self.update_filename_preview)
+        self.type_combo.currentIndexChanged.connect(self.update_filename_preview)
+
+        # 初始化菜单选中状态 - 启动时自动选中中文和浅色模式
         self.update_menu_check_state()
+
+    def update_filename_preview(self):
+        """更新文件名预览"""
+        from datetime import datetime
+
+        # 获取当前设置
+        basename = self.basename_edit.text().strip() or "timeslice"
+        extension = self.extension_combo.currentText().lower()
+        include_timestamp = self.timestamp_check.isChecked()
+        include_slice_type = self.slice_type_check.isChecked()
+
+        # 获取切片类型
+        slice_type_map = {
+            self.tr("垂直切片"): "垂直",
+            self.tr("水平切片"): "水平",
+            self.tr("圆形扇形切片"): "圆形扇形",
+            self.tr("椭圆形扇形切片"): "椭圆形扇形",
+            self.tr("椭圆形环带切片"): "椭圆形环带",
+            self.tr("矩形环带切片"): "矩形环带",
+            self.tr("圆形环带切片"): "圆形环带",
+            self.tr("垂直S型曲线"): "垂直S型",
+            self.tr("水平S型曲线"): "水平S型"
+        }
+        slice_type_text = slice_type_map.get(self.type_combo.currentText(), "")
+
+        # 构建文件名部分
+        parts = [basename]
+
+        if include_timestamp:
+            # 使用示例时间戳
+            parts.append("20231220_143000")
+
+        if include_slice_type and slice_type_text:
+            parts.append(slice_type_text)
+
+        # 组合文件名
+        filename = "-".join(parts)
+
+        # 添加扩展名
+        if extension == "jpg":
+            extension = "jpg"
+        elif extension == "webp":
+            extension = "webp"
+        else:
+            extension = "png"
+
+        preview_text = f"{filename}.{extension}"
+        self.filename_preview.setText(preview_text)
+
+    def update_controls_state(self, index):
+        """更新控件状态"""
+        slice_type = self.type_combo.currentText()
+
+        # 保存当前选中的位置（如果有）
+        current_position = self.position_combo.currentText()
+
+        # 根据切片类型更新位置选项和线性模式设置
+        if slice_type == self.tr("垂直切片"):
+            # 垂直切片：左侧、居中、右侧
+            self.position_combo.clear()
+            self.position_combo.addItems([
+                self.tr("左侧"),
+                self.tr("居中"),
+                self.tr("右侧")
+            ])
+            # 恢复之前选择的位置（如果存在）
+            position_index = self.position_combo.findText(current_position)
+            if position_index >= 0:
+                self.position_combo.setCurrentIndex(position_index)
+            else:
+                self.position_combo.setCurrentIndex(1)  # 默认居中
+
+            # 垂直切片：线性模式控制条带水平位置变化
+            self.linear_check.setEnabled(True)
+            self.linear_check.setText(self.tr("条带位置线性变化"))
+            self.linear_check.setToolTip(self.tr("启用：条带从左到右线性移动\n禁用：条带在固定位置"))
+
+        elif slice_type == self.tr("水平切片"):
+            # 水平切片：顶部、居中、底部
+            self.position_combo.clear()
+            self.position_combo.addItems([
+                self.tr("顶部"),
+                self.tr("居中"),
+                self.tr("底部")
+            ])
+            # 恢复之前选择的位置（如果存在）
+            position_index = self.position_combo.findText(current_position)
+            if position_index >= 0:
+                self.position_combo.setCurrentIndex(position_index)
+            else:
+                self.position_combo.setCurrentIndex(1)  # 默认居中
+
+            # 水平切片：线性模式控制条带垂直位置变化
+            self.linear_check.setEnabled(True)
+            self.linear_check.setText(self.tr("条带位置线性变化"))
+            self.linear_check.setToolTip(self.tr("启用：条带从上到下线性移动\n禁用：条带在固定位置"))
+
+        elif slice_type == self.tr("圆形扇形切片"):
+            # 位置选项不可用
+            self.position_combo.clear()
+            self.position_combo.addItem(self.tr("居中"))
+            self.position_combo.setCurrentIndex(0)
+            self.position_combo.setEnabled(False)
+
+            # 圆形扇形切片：线性模式控制扇形半径变化
+            self.linear_check.setEnabled(True)
+            self.linear_check.setText(self.tr("扇形半径线性缩放"))
+            self.linear_check.setToolTip(self.tr("启用：扇形半径从中心到边缘线性变化\n禁用：所有扇形使用最大半径"))
+
+        elif slice_type == self.tr("椭圆形扇形切片"):
+            # 位置选项不可用
+            self.position_combo.clear()
+            self.position_combo.addItem(self.tr("居中"))
+            self.position_combo.setCurrentIndex(0)
+            self.position_combo.setEnabled(False)
+
+            # 椭圆形扇形切片：线性模式控制椭圆半轴变化
+            self.linear_check.setEnabled(True)
+            self.linear_check.setText(self.tr("椭圆半轴线性缩放"))
+            self.linear_check.setToolTip(self.tr("启用：椭圆半轴从中心到边缘线性变化\n禁用：所有扇形使用最大半轴"))
+
+        else:
+            # 其他切片类型：位置选项不可用
+            self.position_combo.clear()
+            self.position_combo.addItem(self.tr("居中"))
+            self.position_combo.setCurrentIndex(0)
+            self.position_combo.setEnabled(False)
+
+            # 环带类型和S型曲线不支持线性模式
+            self.linear_check.setChecked(False)
+            self.linear_check.setEnabled(False)
+            self.linear_check.setText(self.tr("线性模式"))
+
+            # 设置具体的工具提示
+            if slice_type in [self.tr("椭圆形环带切片"), self.tr("矩形环带切片"), self.tr("圆形环带切片")]:
+                self.linear_check.setToolTip(self.tr("环带切片不支持线性模式\n环带从中心向外扩展，形成同心效果"))
+            elif slice_type in [self.tr("垂直S型曲线"), self.tr("水平S型曲线")]:
+                self.linear_check.setToolTip(self.tr("S型曲线不支持线性模式\n图片沿S形曲线无缝拼接"))
+            else:
+                self.linear_check.setToolTip(self.tr("该切片类型不支持线性模式"))
+
+        # 更新位置选项的启用状态（考虑线性模式）
+        self.update_position_combo_state()
+
+    def update_linear_mode_state(self):
+        """更新线性模式复选框状态变化时的控件状态"""
+        # 更新位置组合框的启用状态
+        self.update_position_combo_state()
+
+    def update_position_combo_state(self):
+        """更新位置组合框的启用状态"""
+        slice_type = self.type_combo.currentText()
+        is_linear = self.linear_check.isChecked()
+
+        # 只有在垂直/水平切片且未启用线性模式时，位置选项才可用
+        if slice_type in [self.tr("垂直切片"), self.tr("水平切片")] and not is_linear:
+            self.position_combo.setEnabled(True)
+        else:
+            self.position_combo.setEnabled(False)
 
     def select_input_dir(self):
         """选择输入目录"""
@@ -541,17 +787,6 @@ class TimesliceGUI(QMainWindow):
         dir_path = QFileDialog.getExistingDirectory(self, self.tr("选择输出目录"))
         if dir_path:
             self.output_dir_edit.setText(dir_path)
-
-    def update_controls_state(self, index):
-        """更新控件状态"""
-        slice_type = self.type_combo.currentText()
-        position_enabled = slice_type in [
-            self.tr("垂直切片"),
-            self.tr("水平切片"),
-            self.tr("垂直S型曲线"),
-            self.tr("水平S型曲线")
-        ]
-        self.position_combo.setEnabled(position_enabled)
 
     def process_images(self):
         """处理图片"""
@@ -591,6 +826,22 @@ class TimesliceGUI(QMainWindow):
         }
         position = position_map.get(self.position_combo.currentText(), "center")
 
+        # 映射排序规则
+        sort_map = {
+            self.tr("按文件名"): "name",
+            self.tr("按创建时间"): "created_time",
+            self.tr("按修改时间"): "modified_time"
+        }
+        sort_by = sort_map.get(self.sort_combo.currentText(), "name")
+
+        # 获取文件扩展名
+        extension_map = {
+            "JPG": "jpg",
+            "PNG": "png",
+            "WebP": "webp"
+        }
+        extension = extension_map.get(self.extension_combo.currentText(), "jpg")
+
         # 准备参数
         params = {
             'input_dir': input_dir,
@@ -598,7 +849,12 @@ class TimesliceGUI(QMainWindow):
             'slice_type': slice_type,
             'position': position,
             'linear': self.linear_check.isChecked(),
-            'reverse': self.reverse_check.isChecked()
+            'reverse': self.reverse_check.isChecked(),
+            'sort_by': sort_by,
+            'output_basename': self.basename_edit.text().strip() or "timeslice",
+            'include_timestamp': self.timestamp_check.isChecked(),
+            'include_slice_type': self.slice_type_check.isChecked(),
+            'extension': extension
         }
 
         # 重置状态
@@ -608,7 +864,7 @@ class TimesliceGUI(QMainWindow):
         # 加载图片
         from utils import load_images
         try:
-            images = load_images(input_dir, self.reverse_check.isChecked())
+            images = load_images(input_dir, sort_by, self.reverse_check.isChecked())
             self.total_images = len(images)
             self.progress_bar.setRange(0, self.total_images)
             self.progress_bar.setValue(0)
@@ -661,7 +917,7 @@ class TimesliceGUI(QMainWindow):
         """关于对话框"""
         QMessageBox.about(self, self.tr("关于"),
                           f"{self.tr('时间切片照片生成器')}\n\n"
-                          f"{self.tr('版本 4.2')}\n"
+                          f"{self.tr('版本 4.3')}\n"
                           f"{self.tr('适用于Windows系统的时间切片照片生成工具')}")
 
     def closeEvent(self, event):
