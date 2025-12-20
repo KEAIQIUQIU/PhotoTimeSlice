@@ -1,6 +1,20 @@
 from PIL import Image, ImageDraw
 import numpy as np
-from tqdm import tqdm
+import sys
+import os
+
+# 检查是否为打包环境
+is_frozen = getattr(sys, 'frozen', False)
+
+# 在打包环境中禁用 tqdm
+if not is_frozen:
+    from tqdm import tqdm
+else:
+    # 在打包环境中，创建一个简单的替代函数
+    def tqdm(iterable=None, desc=None, **kwargs):
+        if desc:
+            print(f"{desc}...")
+        return iterable
 
 def create_horizontal_s_slice(images):
     """

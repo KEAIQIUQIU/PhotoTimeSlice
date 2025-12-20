@@ -1,6 +1,7 @@
 import argparse
 import sys
 import os
+import traceback
 from pathlib import Path
 from datetime import datetime
 
@@ -68,8 +69,19 @@ def run_timeslice(input_dir, output_dir, slice_type, position="center", linear=F
     """生成时间切片（仅Windows）"""
     translator = get_translator('en')
 
+    # 确保输入目录存在
+    if not os.path.exists(input_dir):
+        raise Exception(f"{translator.tr('输入目录不存在:')} {input_dir}")
+
     # 创建输出目录
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    try:
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        raise Exception(f"{translator.tr('无法创建输出目录:')} {str(e)}")
+
+    # 检查输出目录是否可写
+    if not os.access(output_dir, os.W_OK):
+        raise Exception(f"{translator.tr('输出目录不可写:')} {output_dir}")
 
     # 生成输出文件名
     output_filename = generate_output_filename(
@@ -83,7 +95,11 @@ def run_timeslice(input_dir, output_dir, slice_type, position="center", linear=F
     output_path = Path(output_dir) / output_filename
 
     # 加载图片
-    images = load_images(input_dir, sort_by, reverse)
+    try:
+        images = load_images(input_dir, sort_by, reverse)
+    except Exception as e:
+        raise Exception(f"{translator.tr('加载图片失败:')} {str(e)}")
+
     if not images:
         raise Exception(translator.tr("输入目录中没有找到图片"))
 
@@ -97,6 +113,7 @@ def run_timeslice(input_dir, output_dir, slice_type, position="center", linear=F
     if progress_callback:
         progress_callback(0)
 
+    # 在 run_timeslice 函数中修改切片生成部分
     # 生成切片
     result = None
     try:
@@ -120,8 +137,16 @@ def run_timeslice(input_dir, output_dir, slice_type, position="center", linear=F
             result = create_horizontal_s_slice(images)
         else:
             raise ValueError(f"{translator.tr('未知切片类型:')} {slice_type}")
+
+        # 检查 result 是否为 None
+        if result is None:
+            raise Exception(f"{translator.tr('切片生成函数返回了 None，可能是内存不足或算法错误')}")
+
     except Exception as e:
-        raise Exception(f"{translator.tr('生成切片失败:')} {str(e)}")
+        # 添加详细错误信息
+        import traceback
+        error_details = traceback.format_exc()
+        raise Exception(f"{translator.tr('生成切片失败:')}\n{str(e)}\n{error_details}")  # 修改这里
 
     # 保存图片
     try:
@@ -250,11 +275,24 @@ def main():
         print(f"{translator.tr('时间切片已保存至:')} {output_path}")
 
         # Windows自动打开（可选）
-        if input(f"{translator.tr('是否打开生成的图片？(y/n)')} ").lower() == 'y':
-            os.startfile(output_path)
+        if is_frozen:
+            # 在打包环境中，跳过交互式提示
+            try:
+                os.startfile(output_path)
+            except:
+                pass
+        else:
+            response = input(f"{translator.tr('是否打开生成的图片？(y/n)')} ")
+            if response.lower() == 'y':
+                try:
+                    os.startfile(output_path)
+                except:
+                    print(f"{translator.tr('无法打开图片:')} {output_path}")
 
     except Exception as e:
         print(f"\n{translator.tr('错误:')} {str(e)}", file=sys.stderr)
+        if not is_frozen:
+            traceback.print_exc()
         sys.exit(1)
 
 

@@ -6,8 +6,18 @@ from PIL import Image
 from tqdm import tqdm
 from datetime import datetime
 
-# Windows可执行文件判断
+# 判断是否为打包环境
 is_frozen = getattr(sys, 'frozen', False)
+
+
+def get_base_path():
+    """获取正确的基础路径（兼容开发环境和打包环境）"""
+    if is_frozen:
+        # 如果是打包的exe，使用临时解压目录
+        return os.path.dirname(sys.executable)
+    else:
+        # 如果是开发环境，使用当前文件目录
+        return os.path.dirname(os.path.abspath(__file__))
 
 
 def natural_sort_key(s, _nsre=re.compile('([0-9]+)')):
@@ -31,6 +41,10 @@ def get_file_modification_time(path):
 
 def load_images(input_dir, sort_by='name', reverse=False):
     """加载Windows目录中的图片，支持多种排序方式"""
+    # 确保输入目录存在
+    if not os.path.exists(input_dir):
+        raise FileNotFoundError(f"输入目录不存在: {input_dir}")
+
     # 支持的图片格式
     image_extensions = [
         "*.jpg", "*.jpeg", "*.png", "*.tif", "*.tiff",
@@ -41,6 +55,9 @@ def load_images(input_dir, sort_by='name', reverse=False):
     image_paths = []
     for ext in image_extensions:
         image_paths.extend(Path(input_dir).glob(ext))
+
+    if not image_paths:
+        raise FileNotFoundError(f"在目录 {input_dir} 中未找到支持的图片文件")
 
     # 根据排序规则排序
     if sort_by == 'name':
